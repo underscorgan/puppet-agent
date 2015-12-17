@@ -56,7 +56,7 @@ component "pxp-agent" do |pkg, settings, platform|
   case platform.servicetype
   when "systemd"
     pkg.install_service "ext/systemd/pxp-agent.service", "ext/redhat/pxp-agent.sysconfig"
-    pkg.install_configfile "ext/systemd/pxp-agent.logrotate", "/etc/logrotate.d/pxp-agent"
+    pkg.install_templated_configfile "ext/systemd/pxp-agent.logrotate.erb", "ext/systemd/pxp-agent.logrotate", "/etc/logrotate.d/pxp-agent"
   when "sysv"
     if platform.is_deb?
       pkg.install_service "ext/debian/pxp-agent.init", "ext/debian/pxp-agent.default"
