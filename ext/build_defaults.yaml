@@ -9,49 +9,126 @@ foss_platforms:
   - debian-7-i386
   - debian-8-amd64
   - debian-8-i386
+  - debian-9-amd64
+  - debian-9-i386
   - el-5-i386
   - el-5-x86_64
   - el-6-i386
   - el-6-x86_64
   - el-7-x86_64
+  - el-7-ppc64le
   - eos-4-i386
-  - fedora-f22-i386
-  - fedora-f22-x86_64
-  - huaweios-6-powerpc
-  - osx-10.9-x86_64
+  - fedora-f24-i386
+  - fedora-f24-x86_64
+  - fedora-f25-i386
+  - fedora-f25-x86_64
   - osx-10.10-x86_64
   - osx-10.11-x86_64
-  - ubuntu-12.04-amd64
-  - ubuntu-12.04-i386
-  - ubuntu-14.04-amd64
-  - ubuntu-14.04-i386
-  - ubuntu-15.10-amd64
-  - ubuntu-15.10-i386
-  - ubuntu-16.04-amd64
-  - ubuntu-16.04-i386
-  - windows-2012-x86
-  - windows-2012-x64
-pe_platforms:
-  - aix-5.3-power
-  - aix-6.1-power
-  - aix-7.1-power
-  - el-4-i386
-  - el-4-x86_64
-  - sles-10-i386
-  - sles-10-x86_64
+  - osx-10.12-x86_64
   - sles-11-i386
   - sles-11-x86_64
   - sles-12-x86_64
+  - ubuntu-14.04-amd64
+  - ubuntu-14.04-i386
+  - ubuntu-16.04-amd64
+  - ubuntu-16.04-i386
+  - ubuntu-16.04-ppc64el
+  - windows-2012-x86
+  - windows-2012-x64
+pe_platforms:
+  - aix-6.1-power
+  - aix-7.1-power
+  - el-6-s390x
+  - el-7-s390x
+  - sles-11-s390x
+  - sles-12-s390x
   - solaris-10-i386
   - solaris-10-sparc
   - solaris-11-i386
   - solaris-11-sparc
-  - ubuntu-10.04-amd64
-  - ubuntu-10.04-i386
+platform_repos:
+  - name: aix-6.1-power
+    repo_location: repos/aix/6.1/**/ppc
+  - name: aix-7.1-power
+    repo_location: repos/aix/7.1/**/ppc
+  - name: cumulus-amd64
+    repo_location: repos/apt/cumulus
+  - name: eos-4-i386
+    repo_location: repos/eos/4/**/i386
+  - name: el-5-i386
+    repo_location: repos/el/5/**/i386
+  - name: el-5-x86_64
+    repo_location: repos/el/5/**/x86_64
+  - name: el-6-i386
+    repo_location: repos/el/6/**/i386
+  - name: el-6-x86_64
+    repo_location: repos/el/6/**/x86_64
+  - name: el-6-s390x
+    repo_location: repos/el/6/**/s390x
+  - name: el-7-x86_64
+    repo_location: repos/el/7/**/x86_64
+  - name: el-7-s390x
+    repo_location: repos/el/7/**/s390x
+  - name: el-7-ppc64le
+    repo_location: repos/el/7/**/ppc64le
+  - name: sles-11-s390x
+    repo_location: repos/sles/11/**/s390x
+  - name: sles-11-i386
+    repo_location: repos/sles/11/**/i386
+  - name: sles-11-x86_64
+    repo_location: repos/sles/11/**/x86_64
+  - name: sles-12-s390x
+    repo_location: repos/sles/12/**/s390x
+  - name: sles-12-x86_64
+    repo_location: repos/sles/12/**/x86_64
+  - name: fedora-24-i386
+    repo_location: repos/fedora/f24/**/i386
+  - name: fedora-24-x86_64
+    repo_location: repos/fedora/f24/**/x86_64
+  - name: fedora-25-i386
+    repo_location: repos/fedora/f25/**/i386
+  - name: fedora-25-x86_64
+    repo_location: repos/fedora/f25/**/x86_64
+  - name: debian-7-i386
+    repo_location: repos/apt/wheezy
+  - name: debian-7-amd64
+    repo_location: repos/apt/wheezy
+  - name: debian-8-i386
+    repo_location: repos/apt/jessie
+  - name: debian-8-amd64
+    repo_location: repos/apt/jessie
+  - name: debian-9-i386
+    repo_location: repos/apt/stretch
+  - name: debian-9-amd64
+    repo_location: repos/apt/stretch
+  - name: ubuntu-14.04-i386
+    repo_location: repos/apt/trusty
+  - name: ubuntu-14.04-amd64
+    repo_location: repos/apt/trusty
+  - name: ubuntu-16.04-i386
+    repo_location: repos/apt/xenial
+  - name: ubuntu-16.04-amd64
+    repo_location: repos/apt/xenial
+  - name: ubuntu-16.04-ppc64el
+    repo_location: repos/apt/xenial
+  - name: osx-10.10
+    repo_location: repos/apple/10.10/**/x86_64/*.dmg
+  - name: osx-10.11
+    repo_location: repos/apple/10.11/**/x86_64/*.dmg
+  - name: osx-10.12
+    repo_location: repos/apple/10.12/**/x86_64/*.dmg
+  - name: solaris-10-i386
+    repo_location: repos/solaris/10/**/*.i386.pkg.gz
+  - name: solaris-10-sparc
+    repo_location: repos/solaris/10/**/*.sparc.pkg.gz
+  - name: solaris-11-i386
+    repo_location: repos/solaris/11/**/*.i386.p5p
+  - name: solaris-11-sparc
+    repo_location: repos/solaris/11/**/*.sparc.p5p
 gpg_name: 'info@puppetlabs.com'
-gpg_key: '4BD6EC30'
-deb_targets: 'lucid-i386 lucid-amd64 precise-i386 precise-amd64 squeeze-i386 squeeze-amd64 trusty-i386 trusty-amd64 wheezy-i386 wheezy-amd64 xenial-i386 xenial-amd64'
-rpm_targets: 'el-5-i386 el-5-x86_64 el-6-i386 el-6-x86_64 el-7-x86_64 sles-11-i386 sles-11-x86_64 sles-12-x86_64'
+gpg_key: '7F438280EF8D349F'
+deb_targets: 'trusty-amd64 xenial-amd64'
+rpm_targets: 'el-6-x86_64 el-7-x86_64 sles-11-x86_64 sles-12-x86_64'
 sign_tar: FALSE
 osx_signing_cert: "Developer ID Installer: PUPPET LABS, INC. (VKGLGN2B6Y)"
 osx_signing_keychain: "/Users/jenkins/Library/Keychains/signing.keychain"

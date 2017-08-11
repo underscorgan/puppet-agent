@@ -6,3 +6,8 @@ Gemfile.local
 *.log
 ext/packaging
 pkg/*
+*.swp
+acceptance/junit/*
+acceptance/log/*
+acceptance/tmp/*
+acceptance/merged_options.rb

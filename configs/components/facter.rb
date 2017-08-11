@@ -14,9 +14,11 @@ component "facter" do |pkg, settings, platform|
 
   pkg.replaces 'pe-facter'
 
-  pkg.build_requires "ruby"
+  pkg.build_requires "ruby-#{settings[:ruby_version]}"
   pkg.build_requires 'openssl'
   pkg.build_requires 'leatherman'
+  pkg.build_requires 'runtime'
+  pkg.build_requires 'cpp-hocon'
 
   if platform.is_linux? && !platform.is_huaweios?
     # Running facter (as part of testing) expects virt-what is available
@@ -28,13 +30,13 @@ component "facter" do |pkg, settings, platform|
   pkg.build_requires "openssl"
 
   if platform.is_windows?
-    pkg.environment "PATH" => "$$(cygpath -u #{settings[:gcc_bindir]}):$$(cygpath -u #{settings[:ruby_bindir]}):$$(cygpath -u #{settings[:bindir]}):/cygdrive/c/Windows/system32:/cygdrive/c/Windows:/cygdrive/c/Windows/System32/WindowsPowerShell/v1.0"
+    pkg.environment "PATH", "$(shell cygpath -u #{settings[:gcc_bindir]}):$(shell cygpath -u #{settings[:ruby_bindir]}):$(shell cygpath -u #{settings[:bindir]}):/cygdrive/c/Windows/system32:/cygdrive/c/Windows:/cygdrive/c/Windows/System32/WindowsPowerShell/v1.0"
   else
-    pkg.environment "PATH" => "#{settings[:bindir]}:$$PATH"
+    pkg.environment "PATH", "#{settings[:bindir]}:$(PATH)"
   end
 
   # OSX uses clang and system openssl.  cmake comes from brew.
-  if platform.is_osx?
+  if platform.is_macos?
     pkg.build_requires "cmake"
     pkg.build_requires "boost"
     pkg.build_requires "yaml-cpp"
@@ -54,13 +56,11 @@ component "facter" do |pkg, settings, platform|
     pkg.build_requires "http://pl-build-tools.delivery.puppetlabs.net/aix/#{platform.os_version}/ppc/pl-cmake-3.2.3-2.aix#{platform.os_version}.ppc.rpm"
     pkg.build_requires "http://pl-build-tools.delivery.puppetlabs.net/aix/#{platform.os_version}/ppc/pl-boost-1.58.0-1.aix#{platform.os_version}.ppc.rpm"
     pkg.build_requires "http://pl-build-tools.delivery.puppetlabs.net/aix/#{platform.os_version}/ppc/pl-yaml-cpp-0.5.1-1.aix#{platform.os_version}.ppc.rpm"
-    pkg.build_requires "runtime"
   elsif platform.is_windows?
     pkg.build_requires "cmake"
     pkg.build_requires "pl-toolchain-#{platform.architecture}"
     pkg.build_requires "pl-boost-#{platform.architecture}"
     pkg.build_requires "pl-yaml-cpp-#{platform.architecture}"
-    pkg.build_requires "runtime"
   else
     pkg.build_requires "pl-gcc"
     pkg.build_requires "pl-cmake"
@@ -73,11 +73,9 @@ component "facter" do |pkg, settings, platform|
   java_home = ''
   java_includedir = ''
   case platform.name
-  when /fedora-f20/
-    pkg.build_requires 'java-1.7.0-openjdk-devel'
-  when /(el-(6|7)|fedora-(f21|f22|f23|f24))/
+  when /(el-(6|7)|fedora-f24)/
     pkg.build_requires 'java-1.8.0-openjdk-devel'
-  when /(debian-(7|8)|ubuntu-(12|14))/
+  when /(debian-(7|8)|ubuntu-14)/
     pkg.build_requires 'openjdk-7-jdk'
     java_home = "/usr/lib/jvm/java-7-openjdk-#{platform.architecture}"
   when /(debian-9|ubuntu-(15|16))/
@@ -101,7 +99,7 @@ component "facter" do |pkg, settings, platform|
   end
 
   if java_home
-    pkg.environment "JAVA_HOME" => java_home
+    pkg.environment "JAVA_HOME", java_home
   end
 
   # Skip blkid unless we can ensure it exists at build time. Otherwise we depend
@@ -112,7 +110,9 @@ component "facter" do |pkg, settings, platform|
     skip_blkid = 'OFF'
   elsif platform.is_rpm?
     if (platform.is_el? && platform.os_version.to_i >= 6) || (platform.is_sles? && platform.os_version.to_i >= 11) || platform.is_fedora?
-      pkg.build_requires "libblkid-devel" unless platform.architecture == "s390x"
+      # Ensure libblkid-devel isn't installed for all cross-compiled builds,
+      # otherwise the build will fail trying to link to the x86_64 libblkid:
+      pkg.build_requires "libblkid-devel" unless platform.is_cross_compiled?
       skip_blkid = 'OFF'
     elsif (platform.is_el? && platform.os_version.to_i < 6) || (platform.is_sles? && platform.os_version.to_i < 11)
       pkg.build_requires "e2fsprogs-devel"
@@ -125,7 +125,7 @@ component "facter" do |pkg, settings, platform|
 
   # curl is only used for compute clusters (GCE, EC2); so rpm, deb, and Windows
   skip_curl = 'ON'
-  if (platform.is_linux? && !platform.is_huaweios?) || platform.is_windows?
+  if (platform.is_linux? && !platform.is_huaweios? && !platform.is_cisco_wrlinux?) || platform.is_windows?
     pkg.build_requires "curl"
     skip_curl = 'OFF'
   end
@@ -133,12 +133,13 @@ component "facter" do |pkg, settings, platform|
   ruby = "#{settings[:host_ruby]} -rrbconfig"
 
   make = platform[:make]
+  cp = platform[:cp]
 
   special_flags = " -DCMAKE_INSTALL_PREFIX=#{settings[:prefix]} "
 
   # cmake on OSX is provided by brew
   # a toolchain is not currently required for OSX since we're building with clang.
-  if platform.is_osx?
+  if platform.is_macos?
     toolchain = ""
     cmake = "/usr/local/bin/cmake"
     special_flags += "-DCMAKE_CXX_FLAGS='#{settings[:cflags]}'"
@@ -158,11 +159,12 @@ component "facter" do |pkg, settings, platform|
     special_flags += " -DCMAKE_CXX_FLAGS_RELEASE='-O2 -DNDEBUG' "
   elsif platform.is_windows?
     make = "#{settings[:gcc_bindir]}/mingw32-make"
-    pkg.environment "CYGWIN" => settings[:cygwin]
+    pkg.environment "CYGWIN", settings[:cygwin]
 
     cmake = "C:/ProgramData/chocolatey/bin/cmake.exe -G \"MinGW Makefiles\""
     toolchain = "-DCMAKE_TOOLCHAIN_FILE=#{settings[:tools_root]}/pl-build-toolchain.cmake"
-    special_flags = "-DCMAKE_INSTALL_PREFIX=#{settings[:facter_root]}"
+    special_flags = "-DCMAKE_INSTALL_PREFIX=#{settings[:facter_root]} \
+                     -DRUBY_LIB_INSTALL=#{settings[:facter_root]}/lib "
   else
     toolchain = "-DCMAKE_TOOLCHAIN_FILE=/opt/pl-build-tools/pl-build-toolchain.cmake"
     cmake = "/opt/pl-build-tools/bin/cmake"
@@ -178,18 +180,21 @@ component "facter" do |pkg, settings, platform|
 
   unless platform.is_windows?
     special_flags += " -DFACTER_PATH=#{settings[:bindir]} \
-                       -DFACTER_RUBY=#{settings[:libdir]}/$(shell #{ruby} -e 'print RbConfig::CONFIG[\"LIBRUBY_SO\"]')"
+                       -DFACTER_RUBY=#{settings[:libdir]}/$(shell #{ruby} -e 'print RbConfig::CONFIG[\"LIBRUBY_SO\"]') \
+                       -DRUBY_LIB_INSTALL=#{settings[:ruby_vendordir]}"
   end
+
   # FACTER_RUBY Needs bindir
   pkg.configure do
     ["#{cmake} \
         #{toolchain} \
+        -DLEATHERMAN_GETTEXT=ON \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_PREFIX_PATH=#{settings[:prefix]} \
+        -DCMAKE_INSTALL_RPATH=#{settings[:libdir]} \
         #{special_flags} \
         -DBOOST_STATIC=ON \
         -DYAMLCPP_STATIC=ON \
-        -DRUBY_LIB_INSTALL=#{settings[:ruby_vendordir]} \
         -DWITHOUT_CURL=#{skip_curl} \
         -DWITHOUT_BLKID=#{skip_blkid} \
         -DWITHOUT_JRUBY=#{skip_jruby} \
@@ -199,24 +204,38 @@ component "facter" do |pkg, settings, platform|
         ."]
   end
 
-  # Make test will explode horribly in a cross-compile situation
-  # Tests will be skipped on AIX until they are expected to pass
-  if platform.is_cross_compiled? || platform.is_aix?
-    test = ":"
-  else
-    test = "#{make} test ARGS=-V"
-  end
-
   pkg.build do
-    # Until a `check` target exists, run tests are part of the build.
-    [
-      "#{make} -j$(shell expr $(shell #{platform[:num_cores]}) + 1)",
-      test
-    ]
+    ["#{make} -j$(shell expr $(shell #{platform[:num_cores]}) + 1)"]
   end
 
   pkg.install do
     ["#{make} -j$(shell expr $(shell #{platform[:num_cores]}) + 1) install"]
+  end
+
+  if platform.is_macos?
+    ldd = "otool -L"
+  else
+    ldd = "ldd"
+  end
+
+  tests = []
+  unless platform.is_windows? || platform.is_cross_compiled_linux? || platform.architecture == 'sparc'
+    # Check that we're not linking against system libstdc++ and libgcc_s
+    tests = [
+      "#{ldd} lib/libfacter.so",
+      "[ $$(#{ldd} lib/libfacter.so | grep -c libstdc++) -eq 0 ] || #{ldd} lib/libfacter.so | grep libstdc++ | grep -v ' /lib'",
+      "[ $$(#{ldd} lib/libfacter.so | grep -c libgcc_s) -eq 0 ] || #{ldd} lib/libfacter.so | grep libgcc_s | grep -v ' /lib'",
+    ]
+  end
+
+  # Make test will explode horribly in a cross-compile situation
+  # Tests will be skipped on AIX until they are expected to pass
+  if !platform.is_cross_compiled? && !platform.is_aix?
+    tests << "LD_LIBRARY_PATH=#{settings[:libdir]} LIBPATH=#{settings[:libdir]} #{make} test ARGS=-V"
+  end
+
+  pkg.check do
+    tests
   end
 
   pkg.install_file ".gemspec", "#{settings[:gem_home]}/specifications/#{pkg.get_name}.gemspec"
@@ -228,7 +247,6 @@ component "facter" do |pkg, settings, platform|
     pkg.install_file "../facter_interactive.bat", "#{settings[:link_bindir]}/facter_interactive.bat"
     pkg.install_file "../run_facter_interactive.bat", "#{settings[:link_bindir]}/run_facter_interactive.bat"
   end
-  pkg.link "#{settings[:bindir]}/facter", "#{settings[:link_bindir]}/facter" unless platform.is_windows?
   if platform.is_windows?
     pkg.directory File.join(settings[:sysconfdir], 'facter', 'facts.d')
   else

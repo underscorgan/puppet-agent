@@ -5,7 +5,7 @@ REM Avoid the nasty \..\ littering the paths.
 SET PL_BASEDIR=%PL_BASEDIR:\bin\..=%
 
 REM Set a fact so we can easily source the environment.bat file in the future.
-SET FACTER_env_windows_installdir=%PL_BASEDIR%\facter
+SET FACTER_env_windows_installdir=%PL_BASEDIR%
 
 SET PUPPET_DIR=%PL_BASEDIR%\puppet
 REM Facter will load FACTER_ env vars as facts, so don't use FACTER_DIR
@@ -28,5 +28,5 @@ SET RUBYOPT=rubygems
 REM Now return to the caller.
 
 REM Set SSL variables to ensure trusted locations are used
-SET SSL_CERT_FILE=%PL_BASEDIR%\ssl\cert.pem
-SET SSL_CERT_DIR=%PL_BASEDIR%\ssl\certs
+SET SSL_CERT_FILE=%PUPPET_DIR%\ssl\cert.pem
+SET SSL_CERT_DIR=%PUPPET_DIR%\ssl\certs

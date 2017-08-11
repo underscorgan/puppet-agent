@@ -1,6 +1,11 @@
 project "puppet-agent" do |proj|
   platform = proj.get_platform
 
+  # (PA-678) pe-r10k versions prior to 2.5.0.0 ship gettext gems.
+  # Since we also ship those gems as part of puppet-agent
+  # at present, we need to conflict with pe-r10k < 2.5.0.0
+  proj.conflicts "pe-r10k", "2.5.0.0"
+
   # Project level settings our components will care about
   if platform.is_windows?
     proj.setting(:company_name, "Puppet Inc")
@@ -56,7 +61,7 @@ project "puppet-agent" do |proj|
     if platform.is_eos?
       proj.setting(:sysconfdir, "/persist/sys/etc/puppetlabs")
       proj.setting(:link_sysconfdir, "/etc/puppetlabs")
-    elsif platform.is_osx?
+    elsif platform.is_macos?
       proj.setting(:sysconfdir, "/private/etc/puppetlabs")
     else
       proj.setting(:sysconfdir, "/etc/puppetlabs")
@@ -86,12 +91,17 @@ project "puppet-agent" do |proj|
     proj.setting(:libdir, File.join(proj.prefix, "lib"))
   end
 
-  proj.setting(:gem_home, File.join(proj.libdir, "ruby", "gems", "2.1.0"))
+  proj.setting(:ruby_version, "2.4.1")
+  proj.setting(:gem_home, File.join(proj.libdir, "ruby", "gems", "2.4.0"))
   proj.setting(:ruby_vendordir, File.join(proj.libdir, "ruby", "vendor_ruby"))
 
   # Cross-compiled Linux platforms
   platform_triple = "powerpc-linux-gnu" if platform.is_huaweios?
+  platform_triple = "ppc64le-redhat-linux" if platform.architecture == "ppc64le"
+  platform_triple = "powerpc64le-linux-gnu" if platform.architecture == "ppc64el"
   platform_triple = "s390x-linux-gnu" if platform.architecture == "s390x"
+  platform_triple = "arm-linux-gnueabihf" if platform.name == 'debian-8-armhf'
+  platform_triple = "arm-linux-gnueabi" if platform.name == 'debian-8-armel'
 
   if platform.is_cross_compiled_linux?
     host = "--host #{platform_triple}"
@@ -147,7 +157,7 @@ project "puppet-agent" do |proj|
 
   if platform.is_solaris?
     proj.identifier "puppetlabs.com"
-  elsif platform.is_osx?
+  elsif platform.is_macos?
     proj.identifier "com.puppetlabs"
   end
 
@@ -161,7 +171,8 @@ project "puppet-agent" do |proj|
 
   # Define default CFLAGS and LDFLAGS for most platforms, and then
   # tweak or adjust them as needed.
-  proj.setting(:cflags, "-I#{proj.includedir} -I/opt/pl-build-tools/include")
+  proj.setting(:cppflags, "-I#{proj.includedir} -I/opt/pl-build-tools/include")
+  proj.setting(:cflags, "#{proj.cppflags}")
   proj.setting(:ldflags, "-L#{proj.libdir} -L/opt/pl-build-tools/lib -Wl,-rpath=#{proj.libdir}")
 
   # Platform specific overrides or settings, which may override the defaults
@@ -170,19 +181,21 @@ project "puppet-agent" do |proj|
     proj.setting(:gcc_root, "C:/tools/mingw#{arch}")
     proj.setting(:gcc_bindir, "#{proj.gcc_root}/bin")
     proj.setting(:tools_root, "C:/tools/pl-build-tools")
-    proj.setting(:cflags, "-I#{proj.tools_root}/include -I#{proj.gcc_root}/include -I#{proj.includedir}")
+    proj.setting(:cppflags, "-I#{proj.tools_root}/include -I#{proj.gcc_root}/include -I#{proj.includedir}")
+    proj.setting(:cflags, "#{proj.cppflags}")
     proj.setting(:ldflags, "-L#{proj.tools_root}/lib -L#{proj.gcc_root}/lib -L#{proj.libdir}")
     proj.setting(:cygwin, "nodosfilewarning winsymlinks:native")
   end
 
-  if platform.is_osx?
+  if platform.is_macos?
     # For OS X, we should optimize for an older architecture than Apple
     # currently ships for; there's a lot of older xeon chips based on
     # that architecture still in use throughout the Mac ecosystem.
     # Additionally, OS X doesn't use RPATH for linking. We shouldn't
     # define it or try to force it in the linker, because this might
     # break gcc or clang if they try to use the RPATH values we forced.
-    proj.setting(:cflags, "-march=core2 -msse4 -I#{proj.includedir}")
+    proj.setting(:cppflags, "-I#{proj.includedir}")
+    proj.setting(:cflags, "-march=core2 -msse4 #{proj.cppflags}")
     proj.setting(:ldflags, "-L#{proj.libdir} ")
   end
 
@@ -195,6 +208,7 @@ project "puppet-agent" do |proj|
   proj.component "facter"
   proj.component "hiera"
   proj.component "leatherman"
+  proj.component "cpp-hocon"
   proj.component "marionette-collective"
   proj.component "cpp-pcp-client"
   proj.component "pxp-agent"
@@ -202,22 +216,28 @@ project "puppet-agent" do |proj|
   # Then the dependencies
   proj.component "augeas" unless platform.is_windows?
   # Curl is only needed for compute clusters (GCE, EC2); so rpm, deb, and Windows
-  proj.component "curl" if (platform.is_linux? && !platform.is_huaweios?) || platform.is_windows?
-  proj.component "ruby"
+  proj.component "curl" if (platform.is_linux? && !platform.is_huaweios? && !platform.is_cisco_wrlinux?) || platform.is_windows?
+  proj.component "ruby-#{proj.ruby_version}"
   proj.component "nssm" if platform.is_windows?
   proj.component "ruby-stomp"
   proj.component "rubygem-deep-merge"
   proj.component "rubygem-net-ssh"
   proj.component "rubygem-hocon"
   proj.component "rubygem-semantic_puppet"
+  proj.component "rubygem-text"
+  proj.component "rubygem-locale"
+  proj.component "rubygem-gettext"
+  proj.component "rubygem-fast_gettext"
+  proj.component "rubygem-gettext-setup"
   if platform.is_windows?
     proj.component "rubygem-ffi"
-    proj.component "rubygem-minitar"
     proj.component "rubygem-win32-dir"
-    proj.component "rubygem-win32-eventlog"
     proj.component "rubygem-win32-process"
     proj.component "rubygem-win32-security"
     proj.component "rubygem-win32-service"
+  end
+  if platform.is_windows? || platform.is_solaris?
+    proj.component "rubygem-minitar"
   end
   proj.component "ruby-shadow" unless platform.is_aix? || platform.is_windows?
   proj.component "ruby-augeas" unless platform.is_windows?
@@ -233,8 +253,11 @@ project "puppet-agent" do |proj|
     proj.component "shellpath"
   end
 
-  if platform.is_solaris? || platform.name =~ /^huaweios|^el-4/ || platform.is_aix? || platform.is_windows?
-    proj.component "runtime"
+  proj.component "runtime"
+
+  # Windows doesn't need these wrappers, only unix platforms
+  unless platform.is_windows?
+    proj.component "wrapper-script"
   end
 
   # Needed to avoid using readline on solaris and aix
@@ -244,14 +267,16 @@ project "puppet-agent" do |proj|
 
   # Components only applicable on HuaweiOS
   if platform.is_huaweios?
+    proj.component "rubygem-net-ssh-telnet2"
     proj.component "rubygem-net-scp"
     proj.component "rubygem-mini_portile2"
+    proj.component "rubygem-pkg-config"
     proj.component "rubygem-net-netconf"
     proj.component "rubygem-nokogiri"
   end
 
   # Components only applicable on OSX
-  if platform.is_osx?
+  if platform.is_macos?
     proj.component "cfpropertylist"
   end
 
@@ -268,10 +293,4 @@ project "puppet-agent" do |proj|
   proj.directory proj.piddir unless platform.is_windows?
 
   proj.timeout 7200 if platform.is_windows?
-
-  # Here we rewrite public http urls to use our internal source host instead.
-  # Something like https://www.openssl.org/source/openssl-1.0.0r.tar.gz gets
-  # rewritten as
-  # http://buildsources.delivery.puppetlabs.net/openssl-1.0.0r.tar.gz
-  proj.register_rewrite_rule 'http', 'http://buildsources.delivery.puppetlabs.net'
 end

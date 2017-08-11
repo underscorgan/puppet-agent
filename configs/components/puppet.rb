@@ -1,9 +1,24 @@
 component "puppet" do |pkg, settings, platform|
   pkg.load_from_json("configs/components/puppet.json")
 
-  pkg.build_requires "ruby"
+  pkg.build_requires "ruby-#{settings[:ruby_version]}"
   pkg.build_requires "facter"
   pkg.build_requires "hiera"
+  # Used to specify default directories when installing puppet
+  if platform.is_windows?
+    pkg.build_requires "rubygem-win32-dir"
+  end
+  # Used to compile binary translation files
+  # i18n is not supported on Solaris
+  if platform.is_macos?
+    pkg.build_requires "gettext"
+  elsif platform.is_windows?
+    pkg.build_requires "pl-gettext-#{platform.architecture}"
+  elsif platform.is_aix?
+    pkg.build_requires "http://pl-build-tools.delivery.puppetlabs.net/aix/#{platform.os_version}/ppc/pl-gettext-0.19.8-2.aix#{platform.os_version}.ppc.rpm"
+  elsif !platform.is_solaris?
+    pkg.build_requires "pl-gettext"
+  end
 
   pkg.replaces 'puppet', '4.0.0'
   pkg.provides 'puppet', '4.0.0'
@@ -32,28 +47,6 @@ component "puppet" do |pkg, settings, platform|
     elsif platform.is_rpm?
       pkg.install_service "ext/redhat/client.init", "ext/redhat/client.sysconfig"
     end
-    if platform.is_rpm?
-      puppet_bin = "/opt/puppetlabs/bin/puppet"
-      rpm_statedir = "%{_localstatedir}/lib/rpm-state/#{pkg.get_name}"
-      service_statefile = "#{rpm_statedir}/service.pp"
-      pkg.add_preinstall_action ["upgrade"],
-        [<<-HERE.undent
-          install --owner root --mode 0700 --directory #{rpm_statedir} || :
-          if [ -x #{puppet_bin} ] ; then
-            #{puppet_bin} resource service puppet > #{service_statefile} || :
-          fi
-          HERE
-        ]
-
-      pkg.add_postinstall_action ["upgrade"],
-        [<<-HERE.undent
-          if [ -f #{service_statefile} ] ; then
-            #{puppet_bin} apply #{service_statefile} > /dev/null 2>&1 || :
-            rm -rf #{rpm_statedir} || :
-          fi
-          HERE
-        ]
-    end
   when "launchd"
     pkg.install_service "ext/osx/puppet.plist", nil, "com.puppetlabs.puppet"
   when "smf"
@@ -66,6 +59,29 @@ component "puppet" do |pkg, settings, platform|
     pkg.install_service "SourceDir\\#{settings[:base_dir]}\\#{settings[:company_id]}\\#{settings[:product_id]}\\sys\\ruby\\bin\\ruby.exe"
   else
     fail "need to know where to put service files"
+  end
+
+  if (platform.servicetype == "sysv" && platform.is_rpm?) || platform.is_aix?
+    puppet_bin = "/opt/puppetlabs/bin/puppet"
+    rpm_statedir = "%{_localstatedir}/lib/rpm-state/#{pkg.get_name}"
+    service_statefile = "#{rpm_statedir}/service.pp"
+    pkg.add_preinstall_action ["upgrade"],
+      [<<-HERE.undent
+        mkdir -p  #{rpm_statedir} && chown root #{rpm_statedir} && chmod 0700 #{rpm_statedir} || :
+        if [ -x #{puppet_bin} ] ; then
+          #{puppet_bin} resource service puppet > #{service_statefile} || :
+        fi
+        HERE
+      ]
+
+    pkg.add_postinstall_action ["upgrade"],
+      [<<-HERE.undent
+        if [ -f #{service_statefile} ] ; then
+          #{puppet_bin} apply #{service_statefile} > /dev/null 2>&1 || :
+          rm -rf #{rpm_statedir} || :
+        fi
+        HERE
+      ]
   end
 
   # To create a tmpfs directory for the piddir, it seems like it's either this
@@ -85,6 +101,20 @@ component "puppet" do |pkg, settings, platform|
     pkg.install_configfile 'puppet-agent.conf', File.join(settings[:tmpfilesdir], 'puppet-agent.conf')
   end
 
+  # We do not currently support i18n on Solaris
+  unless platform.is_solaris?
+    if platform.is_windows?
+      msgfmt = "/cygdrive/c/tools/pl-build-tools/bin/msgfmt.exe"
+    elsif platform.is_macos?
+      msgfmt = "/usr/local/opt/gettext/bin/msgfmt"
+    else
+      msgfmt = "/opt/pl-build-tools/bin/msgfmt"
+    end
+    pkg.configure do
+      ["for dir in ./locales/*/ ; do [ -d \"$${dir}\" ] || continue ; [ -d \"$${dir}/LC_MESSAGES\" ] || /bin/mkdir \"$${dir}/LC_MESSAGES\" ; #{msgfmt} \"$${dir}/puppet.po\" -o \"$${dir}/LC_MESSAGES/puppet.mo\" ; done ;",]
+    end
+  end
+
   # Puppet requires tar, otherwise PMT will not install modules
   if platform.is_solaris?
     if platform.os_version == "11"
@@ -96,15 +126,15 @@ component "puppet" do |pkg, settings, platform|
     pkg.requires 'tar' unless platform.is_aix?
   end
 
-  if platform.is_osx?
+  if platform.is_macos?
     pkg.add_source("file://resources/files/osx_paths.txt", sum: "077ceb5e2f71cf733190a61d2fd221fb")
     pkg.install_file("../osx_paths.txt", "/etc/paths.d/puppet-agent")
   end
 
   if platform.is_windows?
-    pkg.environment "FACTERDIR" => settings[:facter_root]
-    pkg.environment "PATH" => "$$(cygpath -u #{settings[:gcc_bindir]}):$$(cygpath -u #{settings[:ruby_bindir]}):$$(cygpath -u #{settings[:bindir]}):/cygdrive/c/Windows/system32:/cygdrive/c/Windows:/cygdrive/c/Windows/System32/WindowsPowerShell/v1.0"
-    pkg.environment "RUBYLIB" => "#{settings[:hiera_libdir]}"
+    pkg.environment "FACTERDIR", settings[:facter_root]
+    pkg.environment "PATH", "$(shell cygpath -u #{settings[:gcc_bindir]}):$(shell cygpath -u #{settings[:ruby_bindir]}):$(shell cygpath -u #{settings[:bindir]}):/cygdrive/c/Windows/system32:/cygdrive/c/Windows:/cygdrive/c/Windows/System32/WindowsPowerShell/v1.0"
+    pkg.environment "RUBYLIB", "#{settings[:hiera_libdir]};#{settings[:facter_root]}/lib"
   end
 
   if platform.is_windows?
@@ -132,11 +162,18 @@ component "puppet" do |pkg, settings, platform|
         --vardir=#{vardir} \
         --rundir=#{piddir} \
         --logdir=#{logdir} \
+        --localedir=#{settings[:datadir]}/locale \
         --configs \
         --quick \
         --no-batch-files \
         --man \
-        --mandir=#{settings[:mandir]}"]
+        --mandir=#{settings[:mandir]}",]
+  end
+
+  if platform.is_windows?
+    pkg.install do
+      ["/usr/bin/cp #{settings[:prefix]}/VERSION #{settings[:install_root]}",]
+    end
   end
 
   #The following will add the vim syntax files for puppet
@@ -178,6 +215,7 @@ component "puppet" do |pkg, settings, platform|
 
   pkg.directory vardir, mode: '0750'
   pkg.directory configdir
+  pkg.directory File.join(settings[:datadir], "locale")
   pkg.directory settings[:puppet_codedir]
   pkg.directory File.join(settings[:puppet_codedir], "modules")
   pkg.directory File.join(settings[:prefix], "modules")
@@ -185,6 +223,7 @@ component "puppet" do |pkg, settings, platform|
   pkg.directory File.join(settings[:puppet_codedir], 'environments', 'production')
   pkg.directory File.join(settings[:puppet_codedir], 'environments', 'production', 'manifests')
   pkg.directory File.join(settings[:puppet_codedir], 'environments', 'production', 'modules')
+  pkg.directory File.join(settings[:puppet_codedir], 'environments', 'production', 'data')
   pkg.install_configfile 'conf/environment.conf', File.join(settings[:puppet_codedir], 'environments', 'production', 'environment.conf')
 
   if platform.is_windows?
@@ -194,8 +233,64 @@ component "puppet" do |pkg, settings, platform|
     pkg.directory File.join(settings[:logdir], 'puppet'), mode: "0750"
   end
 
-  pkg.link "#{settings[:bindir]}/puppet", "#{settings[:link_bindir]}/puppet" unless platform.is_windows?
   if platform.is_eos?
     pkg.link "#{settings[:sysconfdir]}", "#{settings[:link_sysconfdir]}"
+  end
+
+  pkg.install_file "ext/hiera/hiera.yaml", File.join(settings[:puppet_codedir], 'environments', 'production', 'hiera.yaml')
+  pkg.configfile File.join(settings[:puppet_codedir], 'environments', 'production', 'hiera.yaml')
+  pkg.configfile File.join(configdir, 'hiera.yaml')
+
+  unless platform.is_windows?
+    old_hiera = File.join(settings[:puppet_codedir], 'hiera.yaml')
+    cnf_hiera = File.join(configdir, 'hiera.yaml')
+    env_hiera = File.join(settings[:puppet_codedir], 'environments', 'production', 'hiera.yaml')
+    rmv_hiera = File.join(configdir, 'remove_hiera5_files.rm')
+
+    # Pre-Install script to save copies of existing hiera configuration files.
+    # This also creates "marker files to indicate that the files pre-existed."
+    preinstall = <<-PREINST
+# Backup the old hiera configs if present, so that we
+# can drop them back in place if the package manager
+# tries to remove it.
+if [ -e #{old_hiera} ]; then
+  mv #{old_hiera}{,.pkg-old}
+  touch #{rmv_hiera}
+fi
+if [ -e #{cnf_hiera} ]; then
+  mv #{cnf_hiera}{,.pkg-old}
+  touch #{rmv_hiera}
+fi
+if [ -e #{env_hiera} ]; then
+  mv #{env_hiera}{,.pkg-old}
+  touch #{rmv_hiera}
+fi
+PREINST
+
+    # Post-install script to restore old hiera config files if the have been saved.
+    # and remove any extre hiera configuration files that we laid down
+    postinstall = <<-POSTINST
+# Remove any extra hiera config files we laid down if prev config present
+if [ -e #{rmv_hiera} ]; then
+  rm -f #{cnf_hiera}
+  rm -f #{env_hiera}
+  rm -f #{rmv_hiera}
+fi
+
+# Restore the old hiera, if it existed
+if [ -e #{old_hiera}.pkg-old ]; then
+  mv #{old_hiera}{.pkg-old,}
+fi
+if [ -e #{cnf_hiera}.pkg-old ]; then
+  mv #{cnf_hiera}{.pkg-old,}
+fi
+if [ -e #{env_hiera}.pkg-old ]; then
+  mv #{env_hiera}{.pkg-old,}
+fi
+
+POSTINST
+
+    pkg.add_preinstall_action ["upgrade"], [preinstall]
+    pkg.add_postinstall_action ["upgrade"], [postinstall]
   end
 end
