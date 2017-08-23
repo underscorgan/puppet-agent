@@ -74,6 +74,12 @@ component "puppet" do |pkg, settings, platform|
         HERE
       ]
 
+    pkg.add_install_triggers ["upgrade"],
+      [<<-HERE.undent
+        echo "THIS IS THE SCRIPT I MADE"
+        HERE
+      ]
+
     pkg.add_postinstall_action ["upgrade"],
       [<<-HERE.undent
         if [ -f #{service_statefile} ] ; then
@@ -267,6 +273,14 @@ if [ -e #{env_hiera} ]; then
 fi
 PREINST
 
+# Trigger Install script
+    trig_install = <<-TRIG
+# blah blah test
+# blah blah test
+# blah
+echo "Test trigger script"
+TRIG
+
     # Post-install script to restore old hiera config files if the have been saved.
     # and remove any extre hiera configuration files that we laid down
     postinstall = <<-POSTINST
@@ -291,6 +305,7 @@ fi
 POSTINST
 
     pkg.add_preinstall_action ["upgrade"], [preinstall]
+    pkg.add_install_triggers ["upgrade"], [trig_install], 'puppetserver'
     pkg.add_postinstall_action ["upgrade"], [postinstall]
   end
 end
