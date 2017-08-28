@@ -80,6 +80,9 @@ component "puppet" do |pkg, settings, platform|
         HERE
       ]
 
+    pkg.add_debian_interest_triggers(['install'], ['echo "trigger test!"'], 'puppet-agent-interest')
+    pkg.add_debian_activate_triggers('puppet-server-trigger')
+
     pkg.add_postinstall_action ["upgrade"],
       [<<-HERE.undent
         if [ -f #{service_statefile} ] ; then
