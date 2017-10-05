@@ -1,5 +1,6 @@
 project "puppet-agent" do |proj|
   platform = proj.get_platform
+  proj.generate_source_artifacts true
 
   # (PA-678) pe-r10k versions prior to 2.5.0.0 ship gettext gems.
   # Since we also ship those gems as part of puppet-agent
