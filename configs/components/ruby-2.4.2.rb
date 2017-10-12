@@ -133,7 +133,7 @@ component "ruby-2.4.2" do |pkg, settings, platform|
     pkg.build_requires 'runtime' if platform.is_cross_compiled_linux?
   end
 
-  pkg.build_requires "openssl"
+  pkg.build_requires "agent-runtime"
 
   if platform.is_deb?
     pkg.build_requires "zlib1g-dev"
