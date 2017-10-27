@@ -15,7 +15,7 @@ component "facter" do |pkg, settings, platform|
   pkg.replaces 'pe-facter'
 
   pkg.build_requires "ruby-#{settings[:ruby_version]}"
-  pkg.build_requires 'agent-runtime'
+  pkg.build_requires 'puppet-agent-52-runtime'
   pkg.build_requires 'leatherman'
   pkg.build_requires 'runtime'
   pkg.build_requires 'cpp-hocon'

@@ -249,7 +249,7 @@ project "puppet-agent" do |proj|
   end
   proj.component "ruby-shadow" unless platform.is_aix? || platform.is_windows?
   proj.component "ruby-augeas" unless platform.is_windows?
-  proj.component "agent-runtime"
+  proj.component "puppet-agent-52-runtime"
   proj.component "puppet-ca-bundle"
   proj.component "libxml2" unless platform.is_windows?
   proj.component "libxslt" unless platform.is_windows?

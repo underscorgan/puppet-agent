@@ -1,7 +1,7 @@
 component "puppet-ca-bundle" do |pkg, settings, platform|
   pkg.load_from_json("configs/components/puppet-ca-bundle.json")
 
-  pkg.build_requires "agent-runtime"
+  pkg.build_requires "puppet-agent-52-runtime"
 
   java_available = true
   case platform.name

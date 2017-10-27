@@ -135,7 +135,7 @@ component "ruby-2.1.9" do |pkg, settings, platform|
     pkg.build_requires 'runtime' if platform.is_cross_compiled_linux?
   end
 
-  pkg.build_requires "agent-runtime"
+  pkg.build_requires "puppet-agent-52-runtime"
 
   if platform.is_deb?
     pkg.build_requires "zlib1g-dev"

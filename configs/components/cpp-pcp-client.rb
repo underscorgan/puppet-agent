@@ -11,7 +11,7 @@ component "cpp-pcp-client" do |pkg, settings, platform|
     pkg.environment "PATH", "#{settings[:bindir]}:/opt/pl-build-tools/bin:$(PATH)"
   end
 
-  pkg.build_requires "agent-runtime"
+  pkg.build_requires "puppet-agent-52-runtime"
   pkg.build_requires "leatherman"
 
   if platform.is_aix?
