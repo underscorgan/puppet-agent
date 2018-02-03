@@ -15,4 +15,5 @@ gem 'packaging', :github => 'puppetlabs/packaging', :branch => '1.0.x'
 gem 'artifactory'
 gem 'rake'
 gem 'json'
+gem 'ruby-git'
 gem 'rubocop', "~> 0.34.2"
