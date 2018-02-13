@@ -2,6 +2,7 @@ component "facter-source-gem" do |pkg, settings, platform|
   pkg.build_requires 'facter-source'
   pkg.build_requires 'leatherman-source'
   pkg.build_requires 'cpp-hocon-source'
+  pkg.build_requires 'puppet-agent'
 
   pkg.add_source("file://resources/files/cfacter-gem/cfacter.gemspec.erb", erb: 'true')
   pkg.add_source("file://resources/files/cfacter-gem/extconf.rb")
