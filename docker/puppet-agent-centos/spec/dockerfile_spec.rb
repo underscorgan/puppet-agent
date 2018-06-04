@@ -22,8 +22,6 @@ describe 'Dockerfile' do
   describe 'Dockerfile#running' do
     include_context 'with a docker container'
 
-    describe command('/opt/puppetlabs/bin/puppet help') do
-      its(:exit_status) { should eq 0 }
-    end
+    it_should_behave_like 'a running container', '/opt/puppetlabs/bin/puppet help', 0
   end
 end
