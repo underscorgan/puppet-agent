@@ -15,6 +15,6 @@ describe 'Dockerfile' do
   end
 
   describe 'Dockerfile#running' do
-    it should_behave_like 'a running container', 'help', 0
+    it_should_behave_like 'a running container', 'help', 0
   end
 end
