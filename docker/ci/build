@@ -4,7 +4,7 @@ set -eux
 
 BUNDLER_PATH=.bundle/gems
 
-export PUPPET_DOCKER_LOCATION='https://github.com/underscorgan/puppet_docker_tools#maint/master/up-timeout'
+export PUPPET_DOCKER_LOCATION='https://github.com/underscorgan/puppet_docker_tools#maint/master/container-test'
 
 function build_and_test_image() {
   container_name=$1

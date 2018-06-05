@@ -20,8 +20,6 @@ describe 'Dockerfile' do
   end
 
   describe 'Dockerfile#running' do
-    include_context 'with a docker container'
-
-    it_should_behave_like 'a running container', '/opt/puppetlabs/bin/puppet help', 0
+    it_should_behave_like 'a running container', 'help', 0
   end
 end
