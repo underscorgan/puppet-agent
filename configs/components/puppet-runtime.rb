@@ -5,7 +5,7 @@ component 'puppet-runtime' do |pkg, settings, platform|
 
   runtime_location = settings[:puppet_runtime_location]
   if ENV['LOCAL_RUNTIME'] == 'true'
-    runtime_location = '/runtime'
+    runtime_location = 'file:///runtime'
   end
 
   pkg.version settings[:puppet_runtime_version]
