@@ -9,8 +9,11 @@ project "puppet-agent" do |proj|
   settings[:puppet_runtime_version] = runtime_details['version']
   settings[:puppet_runtime_location] = runtime_details['location']
   settings[:puppet_runtime_basename] = "agent-runtime-master-#{runtime_details['version']}.#{platform.name}"
+  if ENV['LOCAL_RUNTIME'] == 'true'
+    settings[:puppet_runtime_location] = 'file:///runtime/'
+  end
 
-  settings_uri = File.join(runtime_details['location'], "#{proj.settings[:puppet_runtime_basename]}.settings.yaml")
+  settings_uri = File.join(settings[:puppet_runtime_location], "#{proj.settings[:puppet_runtime_basename]}.settings.yaml")
   sha1sum_uri = "#{settings_uri}.sha1"
   proj.inherit_yaml_settings(settings_uri, sha1sum_uri)
 

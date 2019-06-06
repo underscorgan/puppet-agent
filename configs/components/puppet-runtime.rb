@@ -3,16 +3,10 @@ component 'puppet-runtime' do |pkg, settings, platform|
     raise "Expected to find :puppet_runtime_version, :puppet_runtime_location, and :puppet_runtime_basename settings; Please set these in your project file before including puppet-runtime as a component."
   end
 
-  runtime_location = settings[:puppet_runtime_location]
-  if ENV['LOCAL_RUNTIME'] == 'true'
-    runtime_location = 'file:///runtime'
-  end
-
   pkg.version settings[:puppet_runtime_version]
-
   tarball_name = "#{settings[:puppet_runtime_basename]}.tar.gz"
-  pkg.url File.join(runtime_location, tarball_name)
-  pkg.sha1sum File.join(runtime_location, "#{tarball_name}.sha1")
+  pkg.url File.join(settings[:puppet_runtime_location], tarball_name)
+  pkg.sha1sum File.join(settings[:puppet_runtime_location], "#{tarball_name}.sha1")
 
   # The contents of the runtime replace the following:
   pkg.replaces 'pe-augeas'
