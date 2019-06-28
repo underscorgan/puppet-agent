@@ -10,7 +10,7 @@ project "puppet-agent" do |proj|
   settings[:puppet_runtime_location] = runtime_details['location']
 
   if platform.is_generic?
-    settings[:puppet_runtime_basename] = "agent-runtime-master-#{runtime_details['version']}.el-5-#{platform.architecture}"
+    settings[:puppet_runtime_basename] = "agent-runtime-master-#{runtime_details['version']}.el-5-#{platform.standard_architecture}"
   else
     settings[:puppet_runtime_basename] = "agent-runtime-master-#{runtime_details['version']}.#{platform.name}"
   end
